@@ -1,12 +1,304 @@
+// ...existing code...
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Finance Tracker</title>
+  <style>
+    :root{
+      --bg:#f4f7fb; --card:#ffffff; --accent:#2b6cb0;
+      --green:#16a34a; --red:#dc2626; --muted:#6b7280;
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; min-height:100vh; background:linear-gradient(180deg,#e6eefc 0%,var(--bg) 100%);
+      display:flex; align-items:center; justify-content:center; padding:32px;
+    }
+    .app{
+      width:100%; max-width:920px; background:var(--card); border-radius:12px;
+      padding:22px; box-shadow:0 8px 30px rgba(37,63,97,0.08);
+    }
+    header{display:flex;align-items:center;gap:16px;margin-bottom:20px}
+    header h1{font-size:20px;margin:0}
+    .controls{display:flex; gap:12px; margin-left:auto; align-items:center}
+    .btn{
+      background:var(--accent); color:#fff; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;
+      font-weight:600; box-shadow:0 4px 14px rgba(43,108,176,0.14);
+    }
+    .grid{display:grid; grid-template-columns:1fr 360px; gap:18px}
+    @media(max-width:880px){ .grid{grid-template-columns:1fr} }
+    .panel{background:#fff; border-radius:10px; padding:14px; border:1px solid rgba(15,23,42,0.04)}
+    .balance{display:flex;flex-direction:column; gap:6px}
+    .balance .amount{font-size:28px;font-weight:700}
+    .summary{display:flex;gap:12px;margin-top:12px}
+    .card{flex:1;padding:12px;border-radius:8px;text-align:center;background:#f8fafc}
+    .card small{display:block;color:var(--muted)}
+    .card .value{font-weight:700;margin-top:6px}
+    form{display:flex;flex-direction:column;gap:8px}
+    form input[type="text"], form input[type="number"], form select{
+      padding:10px;border-radius:8px;border:1px solid #e6eef6;outline:none;font-size:14px;
+    }
+    .row{display:flex;gap:8px}
+    .row .flex{flex:1}
+    .tx-list{margin-top:12px;max-height:340px;overflow:auto;padding-right:6px}
+    .tx{
+      display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:8px;margin-bottom:8px;
+      border:1px solid rgba(15,23,42,0.04);
+    }
+    .tx .left{display:flex;gap:8px;align-items:center}
+    .badge{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+    .income{background:linear-gradient(180deg,var(--green),#0f7a3a)}
+    .expense{background:linear-gradient(180deg,var(--red),#a21a1a)}
+    .desc{font-weight:600}
+    .muted{color:var(--muted);font-size:13px}
+    .tx .right{display:flex;gap:8px;align-items:center}
+    .del{background:transparent;border:1px solid rgba(15,23,42,0.06);padding:6px 8px;border-radius:8px;cursor:pointer}
+    footer{margin-top:12px;text-align:center;color:var(--muted);font-size:13px}
+    .empty{padding:18px;border-radius:8px;text-align:center;background:#fbfdff;border:1px dashed rgba(43,108,176,0.12);color:var(--muted)}
+  </style>
 </head>
 <body>
-    Finance Tracker
+  <main class="app" role="main">
+    <header>
+      <h1>Finance Tracker</h1>
+      <div class="controls">
+        <button id="clearBtn" class="btn" title="Clear all transactions">Clear All</button>
+      </div>
+    </header>
+
+    <section class="grid">
+      <section class="panel">
+        <div class="balance">
+          <small class="muted">Current Balance</small>
+          <div class="amount" id="balance">$0.00</div>
+          <div class="summary">
+            <div class="card">
+              <small>Income</small>
+              <div class="value" id="money-plus">$0.00</div>
+            </div>
+            <div class="card">
+              <small>Expense</small>
+              <div class="value" id="money-minus">$0.00</div>
+            </div>
+          </div>
+        </div>
+
+        <hr style="margin:14px 0;border:none;border-top:1px solid #f1f5f9;">
+
+        <form id="form">
+          <label class="muted">Add new transaction</label>
+          <input type="text" id="text" placeholder="Description (e.g., Salary / Coffee)" required />
+          <div class="row">
+            <input type="number" id="amount" placeholder="Amount (use negative for expense)" step="0.01" required />
+            <select id="preset" title="Quick presets">
+              <option value="">Presets</option>
+              <option value="1000">Salary +$1000</option>
+              <option value="-5">Coffee -$5</option>
+              <option value="-50">Groceries -$50</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:6px">
+            <button class="btn" type="submit">Add Transaction</button>
+            <button id="toggleSign" type="button" class="del" title="Toggle sign of amount">Toggle ±</button>
+          </div>
+        </form>
+
+        <div class="tx-list" id="list" aria-live="polite">
+          <!-- transactions injected here -->
+        </div>
+      </section>
+
+      <aside class="panel">
+        <h3 style="margin-top:0">Actions & Info</h3>
+        <p class="muted">This mini-app stores transactions in your browser (localStorage). You can add incomes and expenses, delete items, or clear all data.</p>
+
+        <div style="margin-top:12px">
+          <label class="muted">Search</label>
+          <input id="search" type="text" placeholder="Filter by description" />
+        </div>
+
+        <div style="margin-top:12px">
+          <label class="muted">Sort</label>
+          <select id="sort">
+            <option value="new">Newest</option>
+            <option value="old">Oldest</option>
+            <option value="amount-asc">Amount ↑</option>
+            <option value="amount-desc">Amount ↓</option>
+          </select>
+        </div>
+
+        <div style="margin-top:14px">
+          <button id="exportBtn" class="btn" title="Download transactions as JSON">Export JSON</button>
+        </div>
+
+        <footer>
+          <small>Tip: Type negative amounts for expenses, positive for income.</small>
+        </footer>
+      </aside>
+    </section>
+  </main>
+
+  <script>
+    // Simple finance tracker: add, delete, persist (localStorage), search, sort, export
+    const form = document.getElementById('form');
+    const textEl = document.getElementById('text');
+    const amountEl = document.getElementById('amount');
+    const preset = document.getElementById('preset');
+    const list = document.getElementById('list');
+    const balanceEl = document.getElementById('balance');
+    const moneyPlusEl = document.getElementById('money-plus');
+    const moneyMinusEl = document.getElementById('money-minus');
+    const clearBtn = document.getElementById('clearBtn');
+    const searchEl = document.getElementById('search');
+    const sortEl = document.getElementById('sort');
+    const exportBtn = document.getElementById('exportBtn');
+    const toggleSignBtn = document.getElementById('toggleSign');
+
+    let transactions = JSON.parse(localStorage.getItem('ft_transactions') || '[]');
+
+    function generateId(){ return Math.floor(Math.random()*1e9); }
+
+    function addTransactionObj(tx){
+      transactions.push(tx);
+      saveAndRender();
+    }
+
+    function removeTransaction(id){
+      transactions = transactions.filter(t => t.id !== id);
+      saveAndRender();
+    }
+
+    function clearAll(){
+      if(!confirm('Clear all transactions?')) return;
+      transactions = [];
+      saveAndRender();
+    }
+
+    function saveAndRender(){
+      localStorage.setItem('ft_transactions', JSON.stringify(transactions));
+      render();
+    }
+
+    function formatCurrency(n){
+      const sign = n < 0 ? '-' : '';
+      return sign + '$' + Math.abs(n).toFixed(2);
+    }
+
+    function updateValues(filteredTx=transactions){
+      const amounts = filteredTx.map(t => t.amount);
+      const total = amounts.reduce((a,b)=>a+b,0);
+      const income = amounts.filter(a=>a>0).reduce((a,b)=>a+b,0);
+      const expense = amounts.filter(a=>a<0).reduce((a,b)=>a+b,0);
+      balanceEl.textContent = formatCurrency(total);
+      moneyPlusEl.textContent = formatCurrency(income);
+      moneyMinusEl.textContent = formatCurrency(Math.abs(expense));
+      balanceEl.style.color = total < 0 ? 'var(--red)' : 'inherit';
+    }
+
+    function render(){
+      const q = String(searchEl.value || '').trim().toLowerCase();
+      let txs = transactions.slice();
+
+      // sorting
+      switch(sortEl.value){
+        case 'old': txs.reverse(); break;
+        case 'amount-asc': txs.sort((a,b)=>a.amount-b.amount); break;
+        case 'amount-desc': txs.sort((a,b)=>b.amount-a.amount); break;
+        default: /* newest first already */ txs.sort((a,b)=>b.id-a.id); break;
+      }
+
+      // search filter
+      if(q){
+        txs = txs.filter(t => t.description.toLowerCase().includes(q));
+      }
+
+      list.innerHTML = '';
+      if(txs.length === 0){
+        list.innerHTML = '<div class="empty">No transactions yet.</div>';
+      } else {
+        txs.forEach(t => {
+          const el = document.createElement('div');
+          el.className = 'tx';
+          el.innerHTML = `
+            <div class="left">
+              <div class="badge ${t.amount>=0?'income':'expense'}">${t.description.charAt(0).toUpperCase()}</div>
+              <div>
+                <div class="desc">${escapeHtml(t.description)}</div>
+                <div class="muted">${new Date(t.createdAt).toLocaleString()}</div>
+              </div>
+            </div>
+            <div class="right">
+              <div style="font-weight:700;color:${t.amount>=0?'var(--green)':'var(--red)'}">${formatCurrency(t.amount)}</div>
+              <button class="del" title="Delete" data-id="${t.id}">Delete</button>
+            </div>
+          `;
+          list.appendChild(el);
+        });
+      }
+
+      updateValues(txs);
+    }
+
+    // basic XSS escape for text content injection
+    function escapeHtml(str){
+      return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+    }
+
+    // events
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const description = textEl.value.trim();
+      let amount = parseFloat(amountEl.value);
+      if(!description){ alert('Add a description'); return; }
+      if(Number.isNaN(amount)){ alert('Enter a valid amount'); return; }
+
+      const tx = { id: generateId(), description, amount: Math.round(amount*100)/100, createdAt: Date.now() };
+      addTransactionObj(tx);
+      form.reset();
+      preset.value = '';
+    });
+
+    preset.addEventListener('change', () => {
+      if(preset.value !== ''){
+        amountEl.value = preset.value;
+      }
+    });
+
+    list.addEventListener('click', e => {
+      if(e.target.matches('.del')){
+        const id = Number(e.target.getAttribute('data-id'));
+        if(!Number.isFinite(id)) return;
+        if(confirm('Delete this transaction?')) removeTransaction(id);
+      }
+    });
+
+    clearBtn.addEventListener('click', clearAll);
+
+    searchEl.addEventListener('input', render);
+    sortEl.addEventListener('change', render);
+
+    exportBtn.addEventListener('click', () => {
+      const data = JSON.stringify(transactions, null, 2);
+      const blob = new Blob([data], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'transactions.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    });
+
+    toggleSignBtn.addEventListener('click', () => {
+      const v = amountEl.value;
+      if(!v) return;
+      amountEl.value = String(Number(v) * -1);
+    });
+
+    // initialize
+    render();
+  </script>
 </body>
 </html>
+// ...existing code...
 
